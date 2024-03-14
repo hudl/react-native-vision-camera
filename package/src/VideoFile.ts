@@ -11,6 +11,10 @@ export interface RecordVideoOptions {
    */
   fileType?: 'mov' | 'mp4'
   /**
+   * Specifies further options if the fileType is 'mp4'.
+   */
+  mp4Version?: 'standard' | 'fragmented'
+  /**
    * Called when there was an unexpected runtime error while recording the video.
    */
   onRecordingError: (error: CameraCaptureError) => void
@@ -18,6 +22,10 @@ export interface RecordVideoOptions {
    * Called when the recording has been successfully saved to file.
    */
   onRecordingFinished: (video: VideoFile) => void
+  /**
+   * Specifies the path to write the video file to.
+   */
+  path?: string
   /**
    * The Video Codec to record in.
    * - `h264`: Widely supported, but might be less efficient, especially with larger sizes or framerates.

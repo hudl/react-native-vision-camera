@@ -11,7 +11,9 @@ import Foundation
 
 struct RecordVideoOptions {
   var fileType: AVFileType = .mov
+  var mp4Version: MP4Version = .standard
   var flash: Torch = .off
+  var path: String?
   var codec: AVVideoCodecType?
   /**
    * Full Bit-Rate override for the Video Encoder, in Megabits per second (Mbps)
@@ -31,6 +33,13 @@ struct RecordVideoOptions {
     // Flash
     if let flashOption = dictionary["flash"] as? String {
       flash = try Torch(jsValue: flashOption)
+    }
+    // Path
+    if let parsed = dictionary["path"] as? String {
+      path = parsed
+    }
+    if let parsed = dictionary["mp4Version"] as? String {
+      mp4Version = try MP4Version(jsValue: parsed)
     }
     // Codec
     if let codecOption = dictionary["videoCodec"] as? String {
