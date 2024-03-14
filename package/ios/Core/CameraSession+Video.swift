@@ -73,22 +73,34 @@ extension CameraSession {
         }
       }
 
-      // Create temporary file
-      let errorPointer = ErrorPointer(nilLiteral: ())
-      let fileExtension = options.fileType.descriptor ?? "mov"
-      guard let tempFilePath = RCTTempFilePath(fileExtension, errorPointer) else {
-        let message = errorPointer?.pointee?.description
-        onError(.capture(.createTempFileError(message: message)))
-        return
-      }
+      let outputURL: URL
 
-      ReactLogger.log(level: .info, message: "Will record to temporary file: \(tempFilePath)")
-      let tempURL = URL(string: "file://\(tempFilePath)")!
+      if let path = options.path {
+        // TODO: Add further validation and error checking
+        guard let url = URL(string: path) else {
+          // TODO: onError for this situation
+          return
+        }
+        outputURL = url
+      } else {
+        // Create temporary file
+        let errorPointer = ErrorPointer(nilLiteral: ())
+        let fileExtension = options.fileType.descriptor ?? "mov"
+        guard let tempFilePath = RCTTempFilePath(fileExtension, errorPointer) else {
+          let message = errorPointer?.pointee?.description
+          onError(.capture(.createTempFileError(message: message)))
+          return
+        }
+
+        ReactLogger.log(level: .info, message: "Will record to temporary file: \(tempFilePath)")
+        outputURL = URL(string: "file://\(tempFilePath)")!
+      }
 
       do {
         // Create RecordingSession for the temp file
-        let recordingSession = try RecordingSession(url: tempURL,
-                                                    fileType: options.fileType,
+        let recordingSession = try RecordingSession(url: outputURL,
+                                                    fileType: options.fileType, 
+                                                    isFragmentedMP4: options.mp4Version == .fragmented,
                                                     completion: onFinish)
 
         // Init Audio + Activate Audio Session (optional)

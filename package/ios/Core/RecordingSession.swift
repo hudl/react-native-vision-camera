@@ -72,12 +72,20 @@ class RecordingSession {
 
   init(url: URL,
        fileType: AVFileType,
+       isFragmentedMP4: Bool,
        completion: @escaping (RecordingSession, AVAssetWriter.Status, Error?) -> Void) throws {
     completionHandler = completion
 
     do {
-      assetWriter = try AVAssetWriter(outputURL: url, fileType: fileType)
-      assetWriter.shouldOptimizeForNetworkUse = false
+      if #available(iOS 14.0, *), isFragmentedMP4 {
+        // Fragmented MP4 setup
+        assetWriter = try AVAssetWriter(outputURL: url, fileType: fileType) // TODO: Changeme
+        assetWriter.shouldOptimizeForNetworkUse = true
+      } else {
+        // Fallback on earlier versions
+        assetWriter = try AVAssetWriter(outputURL: url, fileType: fileType)
+        assetWriter.shouldOptimizeForNetworkUse = false
+      }
     } catch let error as NSError {
       throw CameraError.capture(.createRecorderError(message: error.description))
     }
