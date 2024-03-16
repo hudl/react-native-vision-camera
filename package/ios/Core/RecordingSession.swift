@@ -29,6 +29,7 @@ class RecordingSession {
   private let assetWriter: AVAssetWriter
   private var audioWriter: AVAssetWriterInput?
   private var videoWriter: AVAssetWriterInput?
+  private var segmentWriter: Any?   // Used "Any" instead of "SegmentWriter" because class has iOS 14.0+ limitation
   private let completionHandler: (RecordingSession, AVAssetWriter.Status, Error?) -> Void
 
   private var startTimestamp: CMTime?
@@ -44,12 +45,13 @@ class RecordingSession {
 
   // If we are waiting for late frames and none actually arrive, we force stop the session after the given timeout.
   private let automaticallyStopTimeoutSeconds = 4.0
+  private let outputURL: URL
 
   /**
    Gets the file URL of the recorded video.
    */
   var url: URL {
-    return assetWriter.outputURL
+    return outputURL
   }
 
   /**
@@ -72,23 +74,47 @@ class RecordingSession {
 
   init(url: URL,
        fileType: AVFileType,
-       isFragmentedMP4: Bool,
        completion: @escaping (RecordingSession, AVAssetWriter.Status, Error?) -> Void) throws {
     completionHandler = completion
 
     do {
-      if #available(iOS 14.0, *), isFragmentedMP4 {
-        // Fragmented MP4 setup
-        assetWriter = try AVAssetWriter(outputURL: url, fileType: fileType) // TODO: Changeme
-        assetWriter.shouldOptimizeForNetworkUse = true
-      } else {
-        // Fallback on earlier versions
-        assetWriter = try AVAssetWriter(outputURL: url, fileType: fileType)
-        assetWriter.shouldOptimizeForNetworkUse = false
-      }
+      assetWriter = try AVAssetWriter(outputURL: url, fileType: fileType)
+      assetWriter.shouldOptimizeForNetworkUse = false
     } catch let error as NSError {
       throw CameraError.capture(.createRecorderError(message: error.description))
     }
+
+    outputURL = assetWriter.outputURL
+  }
+
+  @available(iOS 14.0, *)
+  init(url: URL,
+       segmentInterval: Double,
+       fileName: String? = nil,
+       completion: @escaping (RecordingSession, AVAssetWriter.Status, Error?) -> Void) throws {
+    // Force a minimum of 1 sec segment interval
+    guard segmentInterval > 0 else {
+      throw CameraError.capture(.createRecorderError(message: "Fragmented-mp4 cannot have zero interval segments"))
+    }
+
+    completionHandler = completion
+
+    // TODO: Forced directory cleanup for POC dev
+    do {
+      try FileManager.default.removeItem(at: url)
+      try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    } catch {
+      NSLog("*** ERROR: \(error.localizedDescription)")
+    }
+
+    segmentWriter = SegmentWriter(url: url, fileNamePrefix: fileName ?? "recording", segmentInterval: segmentInterval, createManifest: true)
+    outputURL = (segmentWriter as? SegmentWriter)?.manifestURL ?? url
+
+    assetWriter = AVAssetWriter(contentType: .mpeg4Movie)
+    assetWriter.shouldOptimizeForNetworkUse = false
+    assetWriter.outputFileTypeProfile = .mpeg4AppleHLS
+    assetWriter.preferredOutputSegmentInterval = CMTime(seconds: segmentInterval, preferredTimescale: 1)
+    assetWriter.delegate = segmentWriter as? AVAssetWriterDelegate
   }
 
   deinit {
@@ -148,7 +174,18 @@ class RecordingSession {
       lock.signal()
     }
 
+    // Get the current time of the AVCaptureSession.
+    // Note: The current time might be more advanced than this buffer's timestamp, for example if the video
+    // pipeline had some additional delay in processing the buffer (aka it is late) - eg because of Video Stabilization (~1s delay).
+    let currentTime = CMClockGetTime(clock)
+
     ReactLogger.log(level: .info, message: "Starting Asset Writer(s)...")
+
+    if #available(iOS 14.0, *),
+       assetWriter.delegate != nil {
+      // Only comes into play if preferredOutputSegmentInterval is set for fragmented-mp4
+      assetWriter.initialSegmentStartTime = currentTime
+    }
 
     let success = assetWriter.startWriting()
     guard success else {
@@ -157,11 +194,6 @@ class RecordingSession {
     }
 
     ReactLogger.log(level: .info, message: "Asset Writer(s) started!")
-
-    // Get the current time of the AVCaptureSession.
-    // Note: The current time might be more advanced than this buffer's timestamp, for example if the video
-    // pipeline had some additional delay in processing the buffer (aka it is late) - eg because of Video Stabilization (~1s delay).
-    let currentTime = CMClockGetTime(clock)
 
     // Start the sesssion at the given time. Frames with earlier timestamps (e.g. late frames) will be dropped.
     assetWriter.startSession(atSourceTime: currentTime)
@@ -307,6 +339,9 @@ class RecordingSession {
     videoWriter?.markAsFinished()
     audioWriter?.markAsFinished()
     assetWriter.finishWriting {
+      if #available(iOS 14.0, *) {
+        (self.segmentWriter as? SegmentWriter)?.finishWriting()
+      }
       self.completionHandler(self, self.assetWriter.status, self.assetWriter.error)
     }
   }

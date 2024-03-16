@@ -11,9 +11,9 @@ export interface RecordVideoOptions {
    */
   fileType?: 'mov' | 'mp4'
   /**
-   * Specifies further options if the fileType is 'mp4'.
+   * The preferred segment interval for fragmented mp4, in seconds.
    */
-  mp4Version?: 'standard' | 'fragmented'
+  segmentInterval?: number
   /**
    * Called when there was an unexpected runtime error while recording the video.
    */
@@ -26,6 +26,10 @@ export interface RecordVideoOptions {
    * Specifies the path to write the video file to.
    */
   path?: string
+  /**
+   * The file name for the video file.
+   */
+  fileName?: string
   /**
    * The Video Codec to record in.
    * - `h264`: Widely supported, but might be less efficient, especially with larger sizes or framerates.

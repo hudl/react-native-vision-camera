@@ -82,6 +82,10 @@ extension CameraSession {
           return
         }
         outputURL = url
+      } else if true {
+        // TODO: Forced URL for POC
+        let documentsDirectory = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        outputURL = URL(fileURLWithPath: "testDir", isDirectory: true, relativeTo: documentsDirectory)
       } else {
         // Create temporary file
         let errorPointer = ErrorPointer(nilLiteral: ())
@@ -97,11 +101,21 @@ extension CameraSession {
       }
 
       do {
+        // TODO: Review comment below
         // Create RecordingSession for the temp file
-        let recordingSession = try RecordingSession(url: outputURL,
-                                                    fileType: options.fileType, 
-                                                    isFragmentedMP4: options.mp4Version == .fragmented,
-                                                    completion: onFinish)
+        let recordingSession: RecordingSession
+        if #available(iOS 14.0, *),
+           let segmentInterval = options.segmentInterval,
+           segmentInterval > 0 {
+          recordingSession = try RecordingSession(url: outputURL,
+                                                  segmentInterval: segmentInterval,
+                                                  fileName: options.fileName,
+                                                  completion: onFinish)
+        } else {
+          recordingSession = try RecordingSession(url: outputURL,
+                                                  fileType: options.fileType,
+                                                  completion: onFinish)
+        }
 
         // Init Audio + Activate Audio Session (optional)
         if enableAudio,
