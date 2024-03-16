@@ -8,7 +8,7 @@ import {
   PhotoFile,
   useCameraDevice,
   useCameraFormat,
-  useFrameProcessor,
+  // useFrameProcessor,
   VideoFile,
 } from 'react-native-vision-camera'
 import { Camera } from 'react-native-vision-camera'
@@ -24,8 +24,8 @@ import IonIcon from 'react-native-vector-icons/Ionicons'
 import type { Routes } from './Routes'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { useIsFocused } from '@react-navigation/core'
-import { examplePlugin } from './frame-processors/ExamplePlugin'
-import { exampleKotlinSwiftPlugin } from './frame-processors/ExampleKotlinSwiftPlugin'
+// import { examplePlugin } from './frame-processors/ExamplePlugin'
+// import { exampleKotlinSwiftPlugin } from './frame-processors/ExampleKotlinSwiftPlugin'
 import { usePreferredCameraDevice } from './hooks/usePreferredCameraDevice'
 
 const ReanimatedCamera = Reanimated.createAnimatedComponent(Camera)
@@ -62,13 +62,13 @@ export function CameraPage({ navigation }: Props): React.ReactElement {
     device = preferredDevice
   }
 
-  const [targetFps, setTargetFps] = useState(60)
+  const [targetFps, setTargetFps] = useState(30)
 
   const screenAspectRatio = SCREEN_HEIGHT / SCREEN_WIDTH
   const format = useCameraFormat(device, [
     { fps: targetFps },
     { videoAspectRatio: screenAspectRatio },
-    { videoResolution: 'max' },
+    { videoResolution: { width: 1920, height: 1080 } },
     { photoAspectRatio: screenAspectRatio },
     { photoResolution: 'max' },
   ])
@@ -171,13 +171,13 @@ export function CameraPage({ navigation }: Props): React.ReactElement {
     console.log(`Camera: ${device?.name} | Format: ${f}`)
   }, [device?.name, format, fps])
 
-  const frameProcessor = useFrameProcessor((frame) => {
-    'worklet'
+  // const frameProcessor = useFrameProcessor((frame) => {
+  //   'worklet'
 
-    console.log(`${frame.timestamp}: ${frame.width}x${frame.height} ${frame.pixelFormat} Frame (${frame.orientation})`)
-    examplePlugin(frame)
-    exampleKotlinSwiftPlugin(frame)
-  }, [])
+  //   console.log(`${frame.timestamp}: ${frame.width}x${frame.height} ${frame.pixelFormat} Frame (${frame.orientation})`)
+  //   examplePlugin(frame)
+  //   exampleKotlinSwiftPlugin(frame)
+  // }, [])
 
   return (
     <View style={styles.container}>
@@ -196,18 +196,18 @@ export function CameraPage({ navigation }: Props): React.ReactElement {
                 onStopped={() => 'Camera stopped!'}
                 format={format}
                 fps={fps}
-                photoHdr={format?.supportsPhotoHdr && enableHdr}
-                videoHdr={format?.supportsVideoHdr && enableHdr}
+                // photoHdr={format?.supportsPhotoHdr && enableHdr}
+                // videoHdr={format?.supportsVideoHdr && enableHdr}
                 lowLightBoost={device.supportsLowLightBoost && enableNightMode}
                 enableZoomGesture={false}
                 animatedProps={cameraAnimatedProps}
                 exposure={0}
                 enableFpsGraph={true}
-                orientation="portrait"
-                photo={true}
+                orientation="landscape-right"
+                // photo={true}
                 video={true}
                 audio={hasMicrophonePermission}
-                frameProcessor={frameProcessor}
+                // frameProcessor={frameProcessor}
               />
             </TapGestureHandler>
           </Reanimated.View>
